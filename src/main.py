@@ -1,6 +1,6 @@
 # from .image_extractor import extract_features
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageColor
 import consistent_points as cp
 import transformations_models as tm
 import ransac
@@ -39,7 +39,7 @@ def find_key_points(image1_features, image2_features):
     return np.array([image1_features[indexes[:, 0]], image2_features[indexes[:, 1]]]), indexes
 
 
-def draw_lines(coordinates_img1, coordinates_img2, A = None):
+def draw_lines(coordinates_img1, coordinates_img2, A = None, color='red'):
     img1 = Image.open(first_image_path)
     img2 = Image.open(second_image_path)
     # img2 = img2.transform(img1.size, Image.AFFINE, A[0:2].flatten())
@@ -50,7 +50,8 @@ def draw_lines(coordinates_img1, coordinates_img2, A = None):
         d.line([coordinates_img1[i][0],
                 coordinates_img1[i][1],
                 coordinates_img2[i][0] + img1.size[0],
-                coordinates_img2[i][1]])
+                coordinates_img2[i][1]],
+               fill=ImageColor.getrgb(color))
     del d
     concat.show()
 
@@ -65,7 +66,7 @@ def transformation_fn(points, transformation_params):
     return A, (A @ np.insert(points.transpose(), 2, 0, axis=0))[0:2].transpose()
 
 
-first_image_path = '../files/extracted/img1.png'
+first_image_path = '../files/extracted/img3.png'
 second_image_path = '../files/extracted/img2.png'
 
 if __name__ == '__main__':
@@ -88,13 +89,18 @@ if __name__ == '__main__':
     # draw before algorithms
     draw_lines(
         key_points_coordinates[0],
-        key_points_coordinates[1]
+        key_points_coordinates[1],
+        color='blue'
     )
 
-
-    number_of_neighbours = int(15 * np.ceil(key_points_features.shape[0] / 100))  # 5% of all key points
-    min_compability = int(np.ceil(30 / 100 * number_of_neighbours))  # 70% of neigbours must be compatible
-
+    number_of_neighbours = int(15 * np.ceil(key_points_coordinates.shape[1] / 100))  # 5% of all key points
+    min_compability = int(np.ceil(40 / 100 * number_of_neighbours))  # 70% of neigbours must be compatible
+    consistent_points = cp.find_consistent_points(key_points_coordinates, min_compability, number_of_neighbours)
+    draw_lines(
+        consistent_points[:, 0],
+        consistent_points[:, 1],
+        color='green'
+    )
 
     # calculate ransac
     best_model, transformed_points = ransac.ransac(key_points_coordinates, transformation_fn, error_fn)
@@ -102,7 +108,8 @@ if __name__ == '__main__':
     draw_lines(
         transformed_points[0].tolist(),
         transformed_points[1].tolist(),
-        best_model
+        best_model,
+        color='yellow'
     )
 
 
